@@ -220,52 +220,63 @@ def parse_workbook_snapav(wbin):
    
 if __name__ == "__main__":
     import argparse
+    import os
     from os.path import basename
     from openpyxl import load_workbook, Workbook
 
     p = argparse.ArgumentParser()
     p.add_argument('-o', '--output', default='master.xlsx')
-    p.add_argument('infiles', nargs='+')
+    p.add_argument('-i', '--input', default=os.getcwd())
+    # p.add_argument('infiles', nargs='+')
     args = p.parse_args()
 
-    fnames = args.infiles
+    # files = args.infiles
+    paths = args.input.strip()
+    print("Current paths: {}".format(paths))
+
     dout = []
-    for f in fnames:
-        if 'aruba' in basename(f).lower():
-            msg = "Processing Aruba file: {}".format(f)
-            print(msg)
-            wb = load_workbook(f)
-            rows = parse_workbook_aruba(wb)
-            dout.extend(rows)
-            wb.close()
-        elif 'cradlepoint' in basename(f).lower():
-            msg = "Processing Cradlepoint file: {}".format(f)
-            print(msg)
-            wb = load_workbook(f)
-            rows = parse_workbook_cradlepoint(wb)
-            dout.extend(rows)
-            wb.close()
-        elif 'fortinet' in basename(f).lower():
-            msg = "Processing Fortinet file: {}".format(f)
-            print(msg)
-            wb = load_workbook(f)
-            rows = parse_workbook_fortinet(wb)
-            dout.extend(rows)
-            wb.close()
-        elif 'meraki' in basename(f).lower():
-            msg = "Processing Meraki file: {}".format(f)
-            print(msg)
-            wb = load_workbook(f)
-            rows = parse_workbook_meraki(wb)
-            dout.extend(rows)
-            wb.close()
-        elif 'snapav' in basename(f).lower():
-            msg = "Processing SnapAV file: {}".format(f)
-            print(msg)
-            wb = load_workbook(f)
-            rows = parse_workbook_snapav(wb)
-            dout.extend(rows)
-            wb.close()
+    for root, dirs, files in os.walk(paths):
+        print("Current path: {}".format(root))
+        print("Current dirs: {}".format(dirs))
+        print("Current files: {}".format(files))
+        for f in files:
+            print("Current file: {}".format(f))
+            f = os.path.join(root,f)
+            if 'aruba' in basename(f).lower():
+                msg = "Processing Aruba file: {}".format(f)
+                print(msg)
+                wb = load_workbook(os.path.join(root,f))
+                rows = parse_workbook_aruba(wb)
+                dout.extend(rows)
+                wb.close()
+            elif 'cradlepoint' in basename(f).lower():
+                msg = "Processing Cradlepoint file: {}".format(f)
+                print(msg)
+                wb = load_workbook(os.path.join(root,f))
+                rows = parse_workbook_cradlepoint(wb)
+                dout.extend(rows)
+                wb.close()
+            elif 'fortinet' in basename(f).lower():
+                msg = "Processing Fortinet file: {}".format(f)
+                print(msg)
+                wb = load_workbook(os.path.join(root,f))
+                rows = parse_workbook_fortinet(wb)
+                dout.extend(rows)
+                wb.close()
+            elif 'meraki' in basename(f).lower():
+                msg = "Processing Meraki file: {}".format(f)
+                print(msg)
+                wb = load_workbook(os.path.join(root,f))
+                rows = parse_workbook_meraki(wb)
+                dout.extend(rows)
+                wb.close()
+            elif 'snapav' in basename(f).lower():
+                msg = "Processing SnapAV file: {}".format(f)
+                print(msg)
+                wb = load_workbook(os.path.join(root,f))
+                rows = parse_workbook_snapav(wb)
+                dout.extend(rows)
+                wb.close()
 
     wbout = Workbook()
     wsout = wbout.active
@@ -275,7 +286,7 @@ if __name__ == "__main__":
     if dout:
         for r in dout:
             wsout.append(r)
-        wbout.save(args.output)
+        wbout.save(args.output.strip())
     wbout.close()
 
 
