@@ -49,6 +49,9 @@
 #   Description: Column C value
 #   List Price: Column J value
 
+
+from config import Maps
+
 def filter_cells(filt, x):
     '''Return true if x does not include any substrings in filt
     '''
@@ -74,10 +77,13 @@ def parse_workbook_aruba(wbin):
     Row Filters: 'Indoor Access Points', 'Mounting Brackets',
                  'Outdoor Access Points', None
     '''
-    sheets = ['Access Points', 'Switches', 'Central Licensing']
-    row_filters = ['Indoor Access Points', 'Mounting Brackets',
-            'Outdoor Access Points', 'Part Number', 'Series', 'None' ]
-    mftr = 'Aruba'
+    m = Maps['aruba']
+    sheets = m['sheets']
+    row_filters = m['row_filters']
+    mftr = m['mftr']
+    sku= m['sku']
+    desc= m['desc']
+    listPrice= m['list']
     result = []
     for s in wbin.sheetnames:
         if s not in sheets:
@@ -90,7 +96,7 @@ def parse_workbook_aruba(wbin):
                 if not filtpass:
                     continue
                 else:
-                    row_out = (mftr, sheet.title, row[0], row[1], row[2])
+                    row_out = (mftr, sheet.title, row[sku], row[desc], row[listPrice])
                     result.append(row_out)
     return result
 
@@ -143,7 +149,7 @@ def parse_workbook_fortinet(wbin):
 
     '''
     sheets = ['FortiGate', 'Wireless Products']
-    row_filters = ['None', 'SKU', 'PRMA', 'Requires','HYPERLINK']
+    row_filters = ['None', 'SKU', 'RMA', 'Requires','HYPERLINK']
     mftr = 'Fortinet'
     result = []
     for s in wbin.sheetnames:
@@ -156,8 +162,10 @@ def parse_workbook_fortinet(wbin):
                 filtpass = filter_cells(row_filters, str(row[1]).split())
                 if not filtpass:
                     continue
-                row_out = (mftr, s, row[1], row[2], row[4])
-                result.append(row_out)
+                for x in range(3,9):
+                    if str(row[x]) != "None":
+                        row_out = (mftr, s, row[1].replace("-DD", "-{}".format(str((x-3)*12))), row[2].replace('Hardware plus', 'Hardware plus {}year'.format(str(x-3))), row[x])
+                        result.append(row_out)
     return result
     
 def parse_workbook_meraki(wbin):
@@ -217,7 +225,53 @@ def parse_workbook_snapav(wbin):
                 result.append(row_out)
     return result
 
-   
+def process_file(root, fileName):
+    print("Current file: {}".format(fileName))
+    if 'aruba' in basename(fileName).lower():
+        msg = "Processing Aruba file: {}".format(fileName)
+        print(msg)
+        wb = load_workbook(os.path.join(root,fileName))
+        rows = parse_workbook_aruba(wb)
+        dout.extend(rows)
+        wb.close()
+    elif 'cradlepoint' in basename(fileName).lower():
+        msg = "Processing Cradlepoint file: {}".format(fileName)
+        print(msg)
+        wb = load_workbook(os.path.join(root,fileName))
+        rows = parse_workbook_cradlepoint(wb)
+        dout.extend(rows)
+        wb.close()
+    elif 'fortinet' in basename(fileName).lower():
+        msg = "Processing Fortinet file: {}".format(fileName)
+        print(msg)
+        wb = load_workbook(os.path.join(root,fileName))
+        rows = parse_workbook_fortinet(wb)
+        dout.extend(rows)
+        wb.close()
+    elif 'meraki' in basename(fileName).lower():
+        msg = "Processing Meraki file: {}".format(fileName)
+        print(msg)
+        wb = load_workbook(os.path.join(root,fileName))
+        rows = parse_workbook_meraki(wb)
+        dout.extend(rows)
+        wb.close()
+    elif 'snapav' in basename(fileName).lower():
+        msg = "Processing SnapAV file: {}".format(fileName)
+        print(msg)
+        wb = load_workbook(os.path.join(root,fileName))
+        rows = parse_workbook_snapav(wb)
+        dout.extend(rows)
+        wb.close()
+
+def easyWalk(_files_):
+    try:
+        number = 0
+        while number < len(_files_):
+            yield (str(os.path.dirname(_files_[number])), [], [_files_[number]])
+            number +=1
+    finally:
+        return
+
 if __name__ == "__main__":
     import argparse
     import os
@@ -227,56 +281,24 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument('-o', '--output', default='master.xlsx')
     p.add_argument('-i', '--input', default=os.getcwd())
-    # p.add_argument('infiles', nargs='+')
+    p.add_argument('-f', '--files', nargs='+', default=[])
     args = p.parse_args()
 
-    # files = args.infiles
+    fileList = args.files
     paths = args.input.strip()
     print("Current paths: {}".format(paths))
 
     dout = []
-    for root, dirs, files in os.walk(paths):
-        print("Current path: {}".format(root))
+    walked = easyWalk(fileList)
+    if len(fileList) == 0:
+        walked = os.walk(paths)
+
+    for root, dirs, files in walked:    
+        print("Current root: {}".format(root))
         print("Current dirs: {}".format(dirs))
         print("Current files: {}".format(files))
         for f in files:
-            print("Current file: {}".format(f))
-            f = os.path.join(root,f)
-            if 'aruba' in basename(f).lower():
-                msg = "Processing Aruba file: {}".format(f)
-                print(msg)
-                wb = load_workbook(os.path.join(root,f))
-                rows = parse_workbook_aruba(wb)
-                dout.extend(rows)
-                wb.close()
-            elif 'cradlepoint' in basename(f).lower():
-                msg = "Processing Cradlepoint file: {}".format(f)
-                print(msg)
-                wb = load_workbook(os.path.join(root,f))
-                rows = parse_workbook_cradlepoint(wb)
-                dout.extend(rows)
-                wb.close()
-            elif 'fortinet' in basename(f).lower():
-                msg = "Processing Fortinet file: {}".format(f)
-                print(msg)
-                wb = load_workbook(os.path.join(root,f))
-                rows = parse_workbook_fortinet(wb)
-                dout.extend(rows)
-                wb.close()
-            elif 'meraki' in basename(f).lower():
-                msg = "Processing Meraki file: {}".format(f)
-                print(msg)
-                wb = load_workbook(os.path.join(root,f))
-                rows = parse_workbook_meraki(wb)
-                dout.extend(rows)
-                wb.close()
-            elif 'snapav' in basename(f).lower():
-                msg = "Processing SnapAV file: {}".format(f)
-                print(msg)
-                wb = load_workbook(os.path.join(root,f))
-                rows = parse_workbook_snapav(wb)
-                dout.extend(rows)
-                wb.close()
+            process_file(root, f)
 
     wbout = Workbook()
     wsout = wbout.active
